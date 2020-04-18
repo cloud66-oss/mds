@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: c66-mds
+  labels:
+    name: c66-mds
+spec:
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      name: c66-mds
+  template:
+    metadata:
+      labels:
+        name: c66-mds
+    spec:
+      containers:
+        - image: cloud66/mds:latest
+          name: mds
+          command:
+            - node
+            - "bin/www"
+          env:
+            - name: PORT
+              value: "3038"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3038
+            initialDelaySeconds: 10
+            timeoutSeconds: 2
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3038
+            initialDelaySeconds: 5
+            timeoutSeconds: 1
+          ports:
+            - containerPort: 3038
+              name: http
+          volumeMounts:
+            - name: podinfo
+              mountPath: /etc/podinfo
+      volumes:
+        - name: podinfo
+          downwardAPI:
+            items:
+              - path: "labels"
+                fieldRef:
+                  fieldPath: metadata.labels
+              - path: "annotations"
+                fieldRef:
+                  fieldPath: metadata.annotations
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: c66-mds
+spec:
+  selector:
+    name: c66-mds
+  type: NodePort
+  ports:
+    - name: http
+      port: 3038
+      targetPort: 3038
